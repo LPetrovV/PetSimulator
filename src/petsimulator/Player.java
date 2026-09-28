@@ -6,17 +6,31 @@ package petsimulator;
 
 /**
  *
- * @author petro
+ * @author Lisa Petrov 
  */
 public class Player {
     private String name;
     private int coins;
     private Inventory inventory;
+    //The player owns the garden, so any action that gets given the player can
+    //reach the apple tree
+    private AppleTree garden;
     
     public Player(String name){
+        this(name, 0);
+    }
+    
+    //Used when loading a save, so the player keeps the coins they had
+    public Player(String name, int coins){
+        this(name, coins, new AppleTree());
+    }
+    
+    //Used when loading a save, so the tree comes back as it was left
+    public Player(String name, int coins, AppleTree garden){
         this.name = name;
-        this.coins = 0;
+        this.coins = coins;
         this.inventory = new Inventory();
+        this.garden = garden;
     }
     
     public String getName(){
@@ -29,6 +43,10 @@ public class Player {
     
     public Inventory getInventory(){
         return inventory;
+    }
+    
+    public AppleTree getGarden(){
+        return garden;
     }
     
     public void addCoins(int num){

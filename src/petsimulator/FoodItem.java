@@ -6,7 +6,7 @@ package petsimulator;
 
 /**
  *
- * @author petro
+ * @author Lisa Petrov
  */
 public class FoodItem extends Item{
     public FoodItem(String name, int price, int buff){

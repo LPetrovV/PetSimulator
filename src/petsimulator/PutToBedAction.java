@@ -6,11 +6,11 @@ package petsimulator;
 
 /**
  *
- * @author petro
+ * @author Lisa Petrov
  */
 public class PutToBedAction implements IAction {
     @Override
-    public void execute(Pet pet, Item item) {
+    public void execute(Pet pet, Player player, Item item) {
         pet.putToBed(); // item unused
         System.out.println(pet.getName()+" is sleeping!");
     }

@@ -6,7 +6,7 @@ package petsimulator;
 
 /**
  *
- * @author petro
+ * @author Lisa Petrov, modifications by AJ
  */
 public class Item {
     private final String name;
@@ -30,5 +30,11 @@ public class Item {
     
     public int getBuff(){
         return buff;
+    }
+    
+    //Most items are used up when they are used. A subclass that should survive
+    //being used - a toy, for example - overrides this and returns false.
+    public boolean isConsumed(){
+        return true;
     }
 }

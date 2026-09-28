@@ -6,7 +6,7 @@ package petsimulator;
 
 /**
  *
- * @author petro
+ * @author Lisa Petrov 
  */
 public class QuitException extends RuntimeException{
     

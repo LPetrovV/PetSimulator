@@ -6,11 +6,16 @@ package petsimulator;
 
 /**
  *
- * @author petro
+ * @author Lisa Petrov
  */
 public class Cat extends Pet{
     
     public Cat(String name){
         super(name);
+    }
+    
+    //Used when loading a save
+    public Cat(String name, int age, PetNeeds needs){
+        super(name, age, needs);
     }
 }

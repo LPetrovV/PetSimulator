@@ -6,10 +6,12 @@ package petsimulator;
 
 /**
  *
- * @author petro
+ * @author Lisa Petrov
  */
 public interface IAction {
-    public void execute(Pet pet, Item item);
+    //The player is passed in as well as the pet, so an action can also reach
+    //the inventory, the coins and the garden - not just the pet itself
+    public void execute(Pet pet, Player player, Item item);
     public String getName();
     boolean requiresItem();
     public Class<? extends Item> getItemType();

@@ -6,7 +6,7 @@ package petsimulator;
 
 /**
  *
- * @author petro
+ * @author Lisa Petrov
  */
 public interface IPetBehaviour {
     public void putToBed();

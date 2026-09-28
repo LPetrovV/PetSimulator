@@ -9,7 +9,7 @@ import java.util.Scanner;
 import java.util.function.Function;
 /**
  *
- * @author petro
+ * @author Lisa Petrov
  */
 //Responsible for collecting player input of various types
 public class InputHandler {

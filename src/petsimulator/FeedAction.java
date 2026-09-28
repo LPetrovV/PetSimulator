@@ -6,11 +6,11 @@ package petsimulator;
 
 /**
  *
- * @author petro
+ * @author Lisa Petrov
  */
 public class FeedAction implements IAction {
     @Override
-    public void execute(Pet pet, Item item) {
+    public void execute(Pet pet, Player player, Item item) {
         // if item is a foodItem, feed pet, display message
         if (item instanceof FoodItem food) {
             pet.feed(food);

@@ -8,7 +8,7 @@ import java.util.ArrayList;
 
 /**
  *
- * @author petro
+ * @author Lisa Petrov
  */
 //This method handles action selection and pet interaction
 public class ActionHandler {
@@ -50,14 +50,17 @@ public class ActionHandler {
         if (action.requiresItem()) {
             Item chosen = selectItem(player, action.getItemType());
             if (chosen != null && player.getInventory().hasItem(chosen)) {
-                player.getInventory().removeItem(chosen);
-                action.execute(pet, chosen);
+                //Food is eaten and gone, a toy stays in the bag for next time
+                if (chosen.isConsumed()) {
+                    player.getInventory().removeItem(chosen);
+                }
+                action.execute(pet, player, chosen);
             } else {
                 System.out.println("You don't have that.");
             }
         //If no item required, execute action
         } else {
-            action.execute(pet, null);
+            action.execute(pet, player, null);
         }
     }
     

@@ -10,16 +10,30 @@ import java.util.Map;
 
 /**
  *
- * @author petro
+ * @author Lisa Petrov, modifications by AJ
  */
 //Responsible for displaying game graphics 
 public class GraphicsHandler {
     
+    //Displays the real world time and how the apple tree is doing
+    public void displayTime(TimeSystem time, AppleTree tree) {
+        System.out.println();
+        System.out.println("=============================================================");
+        System.out.printf("  %-30s Apple tree: %d/%d%n",
+                time.getRealTimeText(), tree.getApples(), AppleTree.MAX_APPLES);
+        if (!tree.isFull()) {
+            System.out.printf("  Next apple in about %d min           Needs drop in %d min%n",
+                    tree.minutesUntilNextApple(), time.minutesUntilNextDrop());
+        }
+        System.out.println("=============================================================");
+    }
+
     //Displays pet stats and pet image 
+    //Method generated with claude
     public void displayPet(Pet pet) {
         System.out.println("\n");
         PetNeeds needs = pet.getNeeds();
-        System.out.printf("Pet: %3s \n", pet.getName());
+        System.out.printf("Pet: %3s  (age %d day(s))%n", pet.getName(), pet.getAge());
         System.out.printf("Energy: %3d/100          Hunger: %3d/100          Happiness: %3d/100%n",
                 needs.getEnergy(), needs.getHunger(), needs.getHappiness());
 
