@@ -8,6 +8,8 @@ import java.awt.Color;
 import javax.swing.*;
 import java.awt.*;
 import java.net.URL;
+import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  *
@@ -24,16 +26,20 @@ public class GameSceneGUI {
     private int infoWidth = 200;
     private int statsHeight = 75;
 
-    //initialise with controller
-    public JPanel happinessComponent;
-    public JPanel energyComponent;
-    public JPanel hungerComponent;
+    //needs components (kept so the controller can update them via the setters below)
+    private NeedsComponent happinessComponent;
+    private NeedsComponent hungerComponent;
+    private NeedsComponent energyComponent;
+
+    private final int defaultMaxNeed = 100;
 
     public JLabel dateLabel = new JLabel();
     public JLabel timeLabel = new JLabel();
 
     //inventory
     public JPanel inventoryPanel = new JPanel();
+    //called with the item name when the user clicks "Use" on an item
+    private Consumer<String> itemUseHandler;
 
     //pet labels
     private JLabel petNameLabel = new JLabel();
@@ -42,7 +48,9 @@ public class GameSceneGUI {
     //action buttons
     public JButton checkTreeButton = new JButton("Check Apple Tree");
     public JButton putToBedButton = new JButton("Put To Bed");
-    
+
+    public JButton quitButton = new JButton("Save & Quit");
+
     private final Color UIBgColor = new Color(0xDFF0FF);
     private final Color buttonColor = new Color(0x4C9FFF);
 
@@ -89,17 +97,21 @@ public class GameSceneGUI {
         //stats layout
         statsPanel.setLayout(new GridLayout(1, 4, 10, 0));
 
-        //initialise needs components here
-        statsPanel.add(new NeedsComponent("Happiness", 99, 100));
-        statsPanel.add(new NeedsComponent("Hunger", 99, 100));
-        statsPanel.add(new NeedsComponent("Energy", 99, 100));
+        //create and keep references to the needs components
+        happinessComponent = new NeedsComponent("Happiness", defaultMaxNeed, defaultMaxNeed);
+        hungerComponent = new NeedsComponent("Hunger", defaultMaxNeed, defaultMaxNeed);
+        energyComponent = new NeedsComponent("Energy", defaultMaxNeed, defaultMaxNeed);
+
+        statsPanel.add(happinessComponent);
+        statsPanel.add(hungerComponent);
+        statsPanel.add(energyComponent);
     }
 
     public void infoPanelSetup() {
         //info layout
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
 
-        //delete later - change with update
+        //placeholders until the controller calls setDate / setTime
         dateLabel.setText("Tue 7th September");
         timeLabel.setText("11:13");
 
@@ -120,16 +132,19 @@ public class GameSceneGUI {
         infoPanel.add(Box.createRigidArea(new Dimension(0, 20)));
         infoPanel.add(inventoryLabel);
         infoPanel.add(Box.createRigidArea(new Dimension(0, 20)));
-        
+
         inventoryPanel.setOpaque(false);
-        
-        //in controller, create itemComponent for each item in inventory
+
+        //placeholder items until the controller calls setInventory
         inventoryPanel.add(new ItemComponent("Apple", 3));
         inventoryPanel.add(new ItemComponent("Apple", 3));
         inventoryPanel.add(new ItemComponent("Apple", 3));
-        
-        
+
         infoPanel.add(inventoryPanel);
+
+        //save and quit button 
+        quitButton.setBackground(buttonColor);
+        infoPanel.add(quitButton);
     }
 
     public void mainPanelSetup() {
@@ -150,7 +165,7 @@ public class GameSceneGUI {
         //action buttons
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 50, 0));
         actionPanel.setOpaque(false);
-        
+
         checkTreeButton.setBackground(buttonColor);
         putToBedButton.setBackground(buttonColor);
         actionPanel.add(checkTreeButton);
@@ -160,7 +175,7 @@ public class GameSceneGUI {
         topContent.add(actionPanel);
 
         mainPanel.add(topContent, BorderLayout.NORTH);
-        
+
         //pet icon
         URL imageURL = GameSceneGUI.class.getResource("/resources/catIcon.png");
 
@@ -173,9 +188,78 @@ public class GameSceneGUI {
         }
     }
 
+    // ------------------------------------------------------------------
+    // Setters used by the controller to update the view
+    // ------------------------------------------------------------------
+
     public void setPetInfo(String name, int age) {
         petNameLabel.setText(name + " - ");
         petAgeLabel.setText(age + " days old");
+    }
+
+    public void setHappiness(int value) {
+        happinessComponent.setValue(value);
+    }
+
+    public void setHunger(int value) {
+        hungerComponent.setValue(value);
+    }
+
+    public void setEnergy(int value) {
+        energyComponent.setValue(value);
+    }
+
+    //convenience method to update all needs in one call
+    public void setNeeds(int happiness, int hunger, int energy) {
+        setHappiness(happiness);
+        setHunger(hunger);
+        setEnergy(energy);
+    }
+
+    public void setDate(String date) {
+        dateLabel.setText(date);
+    }
+
+    public void setTime(String time) {
+        timeLabel.setText(time);
+    }
+
+    /**
+     * Registers what should happen when the user clicks "Use" on any item.
+     * The handler receives the name of the item. Call this before setInventory.
+     */
+    public void setItemUseHandler(Consumer<String> handler) {
+        this.itemUseHandler = handler;
+    }
+
+    /**
+     * Rebuilds the inventory display from item name -> quantity.
+     * Use a LinkedHashMap to keep a stable display order.
+     * Items with a quantity of 0 or less are not shown.
+     */
+    public void setInventory(Map<String, Integer> items) {
+        inventoryPanel.removeAll();
+
+        for (Map.Entry<String, Integer> entry : items.entrySet()) {
+            String itemName = entry.getKey();
+            int quantity = entry.getValue();
+
+            if (quantity <= 0) {
+                continue;
+            }
+
+            ItemComponent itemComponent = new ItemComponent(itemName, quantity);
+            itemComponent.useButton.addActionListener(e -> {
+                if (itemUseHandler != null) {
+                    itemUseHandler.accept(itemName);
+                }
+            });
+            inventoryPanel.add(itemComponent);
+        }
+
+        //Swing doesn't redraw automatically after adding/removing components
+        inventoryPanel.revalidate();
+        inventoryPanel.repaint();
     }
 
 }

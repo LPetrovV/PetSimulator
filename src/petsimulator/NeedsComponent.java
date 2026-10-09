@@ -6,36 +6,42 @@ package petsimulator;
 
 import javax.swing.*;
 import java.awt.*;
+
 /**
  *
  * @author petro
  */
-public class NeedsComponent extends JPanel{
+public class NeedsComponent extends JPanel {
+
     JLabel nameLabel;
     JLabel statsLabel;
     JLabel maxLabel;
-    
+
     private final Color needsColor = new Color(0x428300);
-    
-    public NeedsComponent(String name, int statsNum, int max){
-        
+
+    public NeedsComponent(String name, int statsNum, int max) {
+
         this.setLayout(new FlowLayout(FlowLayout.CENTER));
         nameLabel = new JLabel();
-        nameLabel.setText(name+": ");
+        nameLabel.setText(name + ": ");
         nameLabel.setForeground(Color.WHITE);
-        
+
         statsLabel = new JLabel();
         statsLabel.setText(Integer.toString(statsNum));
         statsLabel.setForeground(Color.WHITE);
-        
+
         maxLabel = new JLabel();
-        maxLabel.setText("/"+Integer.toString(max));
+        maxLabel.setText("/" + Integer.toString(max));
         maxLabel.setForeground(Color.WHITE);
-        
+
         this.setBackground(needsColor);
-        
+
         this.add(nameLabel);
         this.add(statsLabel);
         this.add(maxLabel);
+    }
+
+    public void setValue(int value) {
+        statsLabel.setText(Integer.toString(value));
     }
 }

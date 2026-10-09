@@ -17,58 +17,55 @@ public class Game {
     Pet pet;
     SaveSystem gameSave = new SaveSystem();
     TimeSystem timeSystem = new TimeSystem();
-    ActionHandler actionHandler = new ActionHandler();
+    //ActionHandler actionHandler = new ActionHandler();
     InputHandler inputHandler = new InputHandler();
-    GraphicsHandler draw = new GraphicsHandler();
+    //GraphicsHandler draw = new GraphicsHandler();
 
-    public static void main(String[] args) {
-        //Instantiate new game
-        Game game = new Game();
+//    public static void main(String[] args) {
+//        //Instantiate new game
+//        Game game = new Game();
+//
+//        //Start game + game loop, while quit expection is not caught
+//        try {
+//            game.start();
+//            while (true) {
+//                game.update();
+//            }
+//        } catch (QuitException e) {
+//            game.quit();
+//        }
+//    }
 
-        //Start game + game loop, while quit expection is not caught
-        try {
-            game.start();
-            while (true) {
-                game.update();
-            }
-        } catch (QuitException e) {
-            game.quit();
-        }
-    }
-
-    public void start() {
-        //On start, new game or load game
-        String gameOptionPrompt = "Game Options:\n1.New Game\n2.Load Save";
-        ArrayList<String> gameOptionValidOptions = new ArrayList<>(List.of("1", "2"));
-
-        //Tell the player up front whether there is anything to load
-        if (gameSave.exists()) {
-            System.out.println("A saved game was found in " + SaveSystem.SAVE_FILE);
-        } else {
-            System.out.println("No save file found yet - choose New Game.");
-        }
-
-        //Collect player input
-        String gameOption = inputHandler.collectValidInput(gameOptionPrompt, gameOptionValidOptions);
-
-        //If new game selected
-        if (gameOption.equals(gameOptionValidOptions.get(0))) {
-            //start new game
-            newGame();
-        } else if (gameOption.equals(gameOptionValidOptions.get(1))) {
-            //load save, and fall back to a new game if there isn't a usable one
-            if (!loadGame()) {
-                System.out.println("Starting a new game instead.");
-                newGame();
-            }
-        }
-
-        //Register available actions to actionHandler
-        actionHandler.registerAction(new PutToBedAction());
-        actionHandler.registerAction(new FeedAction());
-        actionHandler.registerAction(new PlayGameAction());
-        actionHandler.registerAction(new CheckTreeAction());
-    }
+//    public void start() {
+//        //On start, new game or load game
+//        //String gameOptionPrompt = "Game Options:\n1.New Game\n2.Load Save";
+//        //ArrayList<String> gameOptionValidOptions = new ArrayList<>(List.of("1", "2"));
+//
+//        //Tell the player up front whether there is anything to load
+////        if (gameSave.exists()) {
+////            System.out.println("A saved game was found in " + SaveSystem.SAVE_FILE);
+////        } else {
+////            System.out.println("No save file found yet - choose New Game.");
+////        }
+//
+//        //Collect player input
+//        //String gameOption = inputHandler.collectValidInput(gameOptionPrompt, gameOptionValidOptions);
+//
+//        //If new game selected
+////        if (gameOption.equals(gameOptionValidOptions.get(0))) {
+////            //start new game
+////            newGame();
+////        } else if (gameOption.equals(gameOptionValidOptions.get(1))) {
+////            //load save, and fall back to a new game if there isn't a usable one
+////            if (!loadGame()) {
+////                System.out.println("Starting a new game instead.");
+////                newGame();
+////            }
+////        }
+//
+//        //Register available actions to actionHandler
+//        
+//    }
 
     public void update() {
         //If the pet is gone there is nothing left to do
@@ -87,10 +84,10 @@ public class Game {
         }
 
         //display the real time, pet stats, pet and items
-        draw.displayTime(timeSystem, player.getGarden());
-        draw.displayPet(pet);
-
-        draw.displayInventory(player.getInventory(), Item.class);
+//        draw.displayTime(timeSystem, player.getGarden());
+//        draw.displayPet(pet);
+//
+//        draw.displayInventory(player.getInventory(), Item.class);
 
         //Warn the player while there is still time to do something about it
         if (pet.getNeeds().anyLow()) {
@@ -99,8 +96,8 @@ public class Game {
         }
 
         //display player options
-        String chosen = actionHandler.displayPlayerOptions();
-        actionHandler.handleAction(chosen, pet, player);
+//        String chosen = actionHandler.displayPlayerOptions();
+//        actionHandler.handleAction(chosen, pet, player);
     }
 
     public void saveGame() {
@@ -110,7 +107,7 @@ public class Game {
         SaveData data = new SaveData(player, pet, timeSystem);
 
         if (gameSave.saveToFile(data)) {
-            System.out.println("Game saved to " + SaveSystem.SAVE_FILE);
+            //System.out.println("Game saved to " + SaveSystem.SAVE_FILE);
             gameSave.appendLog("SAVE | " + player.getName() + " saved "
                     + pet.getName() + " (age " + pet.getAge() + ")");
         }
