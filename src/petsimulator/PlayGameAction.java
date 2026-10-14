@@ -9,20 +9,28 @@ package petsimulator;
  * @author Lisa Petrov
  */
 public class PlayGameAction implements IAction {
+    private String message = "";
     @Override
     public void execute(Pet pet, Player player, Item item) {
+        message = "";
         if (item instanceof ToyItem toy) {
             pet.playGame(toy);
-            System.out.println(pet.getName()+" is playing! Plus "+item.getBuff()+" to happiness!\nThey feel a bit tired now");
+            message+=(pet.getName()+" is playing! Plus "+item.getBuff()+" to happiness!\nThey feel a bit tired now");
         }
         else {
-            System.out.println("That's not a toy :(");
+            message+=("That's not a toy :(");
         }
     }
     @Override
     public String getName() { 
         return "Play Game"; 
     }
+    
+    @Override
+    public String getMessage() {
+        return message;
+    }
+    
     @Override
     public boolean requiresItem() { 
         return true; 

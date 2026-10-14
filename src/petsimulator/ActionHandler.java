@@ -22,34 +22,33 @@ public class ActionHandler {
 
     
     //Handles action after player select 
-    public void handleAction(String input, Pet pet, Player player) {
+    public String handleAction(String input, Pet pet, Player player) {
         //gets appropriate action
         IAction action = actions.get(input);
         if (action == null) {
-            System.out.println("Unknown action: " + input);
-            return;
+            return "Unknown action: " + input;
         }
 
         action.execute(pet, player, null);
+        return action.getMessage();
     }
 
     //Handle use item action
-    public void handleItemAction(Item item, Pet pet, Player player) {
+    public String handleItemAction(Item item, Pet pet, Player player) {
         IAction action = null;
         if (item instanceof FoodItem) {
-            action = actions.get("FeedAction");
+            action = actions.get("Feed");
         } else if (item instanceof ToyItem) {
-            action = actions.get("PlayGameAction");
+            action = actions.get("Play Game");
         }
 
         if (action == null) {
-            System.out.println("Unknown action: ");
-            return;
+            return "Unknown action: ";
         }
         if (item.isConsumed()) {
             player.getInventory().removeItem(item);
         }
         action.execute(pet, player, item);
-
+        return action.getMessage();
     }
 }

@@ -9,18 +9,27 @@ package petsimulator;
  * @author Lisa Petrov
  */
 public class FeedAction implements IAction {
+    private String message = "";
+    
     @Override
     public void execute(Pet pet, Player player, Item item) {
+        message = "";
         // if item is a foodItem, feed pet, display message
         if (item instanceof FoodItem food) {
             pet.feed(food);
-            System.out.println(pet.getName()+" ate "+item.getName()+"! Plus "+item.getBuff()+" to hunger!");
+            message+=(pet.getName()+" ate "+item.getName()+"! Plus "+item.getBuff()+" to hunger!\n");
         }
     }
     @Override
     public String getName() { 
         return "Feed"; 
     }
+    
+    @Override
+    public String getMessage() {
+        return message;
+    }
+    
     @Override
     public boolean requiresItem() { 
         return true; 

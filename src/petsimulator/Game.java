@@ -14,6 +14,8 @@ public class Game {
     private Pet pet;
     SaveSystem gameSave = new SaveSystem();
     TimeSystem timeSystem = new TimeSystem();
+    
+    private String updateMessage = "";
 
     public void update() {
         //If the pet is gone there is nothing left to do
@@ -21,19 +23,19 @@ public class Game {
         //needs on screen are always what they should be right now
         String news = timeSystem.update(pet, player.getGarden());
         if (!news.isEmpty()) {
-            System.out.println("\n" + news);
+            updateMessage+=("\n" + news);
         }
 
         //If the pet is gone there is nothing left to do
         if (!pet.isAlive()) {
-            System.out.println("\n" + pet.getName() + " is no longer with you.");
-            System.out.println("You kept them going for " + pet.getAge() + " day(s).");
+            updateMessage+=("\n" + pet.getName() + " is no longer with you.\n");
+            updateMessage+=("You kept them going for " + pet.getAge() + " day(s).");
             throw new QuitException();
         }
 
         //Warn the player while there is still time to do something about it
         if (pet.getNeeds().anyLow()) {
-            System.out.println("WARNING: " + pet.getName() + " is "
+            updateMessage+=("WARNING: " + pet.getName() + " is "
                     + pet.getNeeds().worstNeed() + "! Look after them soon.");
         }
     }
@@ -77,7 +79,7 @@ public class Game {
         //pet was adopted, and when the game was last up to date
         this.timeSystem = new TimeSystem(data.getFirstPlayed(), data.getSystemDate());
 
-        System.out.println("\nWelcome back, " + player.getName() + "!");
+        updateMessage+=("\nWelcome back, " + player.getName() + "!");
 
         //Apply all the real time that passed while the game was closed
         String news = timeSystem.update(pet, player.getGarden());
@@ -100,9 +102,7 @@ public class Game {
     }
 
     public void quit() {
-        //save game and quit
-        System.out.println("See you next time!");
-
+        
         if (pet != null && pet.isAlive()) {
             saveGame();
         } else if (pet != null) {
@@ -110,8 +110,6 @@ public class Game {
             gameSave.deleteSave();
             gameSave.appendLog("LOST | " + pet.getName() + " left after "
                     + pet.getAge() + " day(s)");
-            System.out.println("The save file has been cleared - "
-                    + "next time you will start with a new pet.");
         }
     }
 
@@ -129,10 +127,7 @@ public class Game {
         //A new pet starts the clock from right now
         this.timeSystem = new TimeSystem();
 
-        System.out.println("\nThere is an apple tree in your garden. Check it often - "
-                + "it grows one apple every " + TimeSystem.MINUTES_PER_APPLE
-                + " real minutes, up to " + AppleTree.MAX_APPLES + " at a time.");
-        System.out.println("This game runs on real world time. Your pet gets hungry, "
+        updateMessage+=("\nThis game runs on real world time. Your pet gets hungry, "
                 + "tired and bored whether the game is open or not, so come back often - "
                 + "leave them " + TimeSystem.ABANDON_DAYS
                 + " days and they will find a new owner.");
@@ -147,5 +142,9 @@ public class Game {
     
     public Player getPlayer(){
         return this.player;
+    }
+    
+    public String getUpdateMessage(){
+        return updateMessage;
     }
 }

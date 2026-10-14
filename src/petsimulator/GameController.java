@@ -18,11 +18,12 @@ public class GameController {
     private final Window window;
     private final Game model;
     private final ActionHandler actionHandler;
- 
+
     private StartScene startScene;
     private NewGamePromptGUI newGameScene;
     private GameSceneGUI view;
- 
+    private GameMessageGUI messageGUI;
+
     public GameController(Window window, Game model, ActionHandler actionHandler) {
         this.window = window;
         this.model = model;
@@ -32,14 +33,14 @@ public class GameController {
     //on application start display title screen 
     public void start() {
         startScene = new StartScene(window);
- 
+
         boolean saveExists = model.gameSave.exists();
         startScene.setSaveStatus(saveExists ? "Save file found" : "No save file found");
         startScene.setLoadEnabled(saveExists);
- 
+
         startScene.newGameButton.addActionListener(e -> openNewGamePromptScene());
         startScene.loadGameButton.addActionListener(e -> loadGame());
- 
+
         window.setVisible(true);
     }
 
@@ -48,21 +49,20 @@ public class GameController {
         startScene.remove();
         //open prompt input scene 
         newGameScene = new NewGamePromptGUI(window);
-        
+
         newGameScene.startButton.addActionListener(e -> checkNewGameRequirements());
         window.setVisible(true);
     }
-    
-    public void checkNewGameRequirements(){
+
+    public void checkNewGameRequirements() {
         String playerName = newGameScene.getPlayerName();
         String petName = newGameScene.getPetName();
-        if (!playerName.equals("") && !petName.equals("")){
+        if (!playerName.equals("") && !petName.equals("")) {
             newGameScene.remove();
-            
+
             model.newGame(playerName, petName);
             loadMainScene();
-        }
-        else {
+        } else {
             newGameScene.setErrorMessage("Please fill out both fields");
         }
     }
@@ -88,43 +88,54 @@ public class GameController {
     // switch to main scene
     private void loadMainScene() {
         startScene.remove();
- 
+
         view = new GameSceneGUI(window);
         attachListeners();
         refreshView();
- 
+        
+        //display news messages
+        messageGUI = new GameMessageGUI(window);
+        messageGUI.showMessage(model.getUpdateMessage());
+
         window.revalidate();
         window.repaint();
     }
 
     // attach action listeners to key buttons in main scene
-     private void attachListeners() {
+    private void attachListeners() {
         //fixed buttons: button -> action name registered in the ActionHandler
         bindAction(view.checkTreeButton, "Check Apple Tree");
         bindAction(view.putToBedButton, "Put to Bed");
- 
+
         view.quitButton.addActionListener(e -> quit());
- 
+
         //inventory "Use" buttons: the view reports the item name, we handle it
         view.setItemUseHandler(this::useItem);
     }
-     
+
     private void bindAction(JButton button, String actionName) {
         button.addActionListener(e -> {
-            actionHandler.handleAction(actionName, model.getPet(), model.getPlayer());
+            var message = actionHandler.handleAction(actionName, model.getPet(), model.getPlayer());
+            
+            messageGUI = new GameMessageGUI(window);
+            messageGUI.showMessage(message, 3000);
+            
             refreshView();
         });
     }
-    
+
     private void useItem(String itemName) {
         Item item = model.getPlayer().getInventory().findByName(itemName);
         if (item == null) {
             return;
         }
-        actionHandler.handleItemAction(item, model.getPet(), model.getPlayer());
+        var message = actionHandler.handleItemAction(item, model.getPet(), model.getPlayer());
+        
+        messageGUI = new GameMessageGUI(window);
+        messageGUI.showMessage(message, 3000);
         refreshView();
     }
-    
+
     private void quit() {
         model.quit();
         window.dispose();
