@@ -17,14 +17,14 @@ import java.util.function.Consumer;
  */
 public class GameSceneGUI {
 
-    private JPanel statsPanel;
-    private JPanel infoPanel;
-    private ImagePanel mainPanel;
-    private JFrame frame;
+    private final JPanel statsPanel;
+    private final JPanel infoPanel;
+    private final ImagePanel mainPanel;
+    private final JFrame frame;
 
     //sizing
-    private int infoWidth = 200;
-    private int statsHeight = 75;
+    private final int infoWidth = 200;
+    private final int statsHeight = 75;
 
     //needs components (kept so the controller can update them via the setters below)
     private NeedsComponent happinessComponent;
@@ -34,7 +34,7 @@ public class GameSceneGUI {
     private final int defaultMaxNeed = 100;
 
     public JLabel dateLabel = new JLabel();
-    public JLabel timeLabel = new JLabel();
+    
 
     //inventory
     public JPanel inventoryPanel = new JPanel();
@@ -42,8 +42,8 @@ public class GameSceneGUI {
     private Consumer<String> itemUseHandler;
 
     //pet labels
-    private JLabel petNameLabel = new JLabel();
-    private JLabel petAgeLabel = new JLabel();
+    private final JLabel petNameLabel = new JLabel();
+    private final JLabel petAgeLabel = new JLabel();
 
     //action buttons
     public JButton checkTreeButton = new JButton("Check Apple Tree");
@@ -111,9 +111,7 @@ public class GameSceneGUI {
         //info layout
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
 
-        //placeholders until the controller calls setDate / setTime
-        dateLabel.setText("Tue 7th September");
-        timeLabel.setText("11:13");
+        
 
         //inventory label
         JLabel inventoryLabel = new JLabel();
@@ -121,13 +119,11 @@ public class GameSceneGUI {
 
         //fixing alignment for all components 
         dateLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        timeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         inventoryLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         inventoryPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         //adding components to infoPanel
         infoPanel.add(dateLabel);
-        infoPanel.add(timeLabel);
         //spacing
         infoPanel.add(Box.createRigidArea(new Dimension(0, 20)));
         infoPanel.add(inventoryLabel);
@@ -218,10 +214,6 @@ public class GameSceneGUI {
 
     public void setDate(String date) {
         dateLabel.setText(date);
-    }
-
-    public void setTime(String time) {
-        timeLabel.setText(time);
     }
 
     /**

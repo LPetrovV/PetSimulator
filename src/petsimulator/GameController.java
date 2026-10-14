@@ -4,81 +4,129 @@
  */
 package petsimulator;
 
-import java.util.Scanner;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import javax.swing.JButton;
 
 /**
  *
  * @author petro
  */
-
 //this class handles interactions from the GUI and updates the model
 public class GameController {
-    
-    Window window = new Window();
-    ActionHandler actionHandler = new ActionHandler();
-    StartScene startScene;
-    GameSceneGUI view;
-    Game model = new Game();
 
-    public GameController() {
-        startGame();
+    private final Window window;
+    private final Game model;
+    private final ActionHandler actionHandler;
+ 
+    private StartScene startScene;
+    private NewGamePromptGUI newGameScene;
+    private GameSceneGUI view;
+ 
+    public GameController(Window window, Game model, ActionHandler actionHandler) {
+        this.window = window;
+        this.model = model;
+        this.actionHandler = actionHandler;
     }
 
     //on application start display title screen 
-    private void startGame() {
+    public void start() {
         startScene = new StartScene(window);
-        window.setVisible(true);
-
-        startScene.setLoadEnabled(model.gameSave.exists());
-
-        startScene.newGameButton.addActionListener(e -> newGame());
+ 
+        boolean saveExists = model.gameSave.exists();
+        startScene.setSaveStatus(saveExists ? "Save file found" : "No save file found");
+        startScene.setLoadEnabled(saveExists);
+ 
+        startScene.newGameButton.addActionListener(e -> openNewGamePromptScene());
         startScene.loadGameButton.addActionListener(e -> loadGame());
+ 
+        window.setVisible(true);
     }
-    
-    // start new game
-    private void newGame() {
-        model.newGame();
 
-        loadMainScene();
+    // start new game
+    private void openNewGamePromptScene() {
+        startScene.remove();
+        //open prompt input scene 
+        newGameScene = new NewGamePromptGUI(window);
+        
+        newGameScene.startButton.addActionListener(e -> checkNewGameRequirements());
+        window.setVisible(true);
     }
     
+    public void checkNewGameRequirements(){
+        String playerName = newGameScene.getPlayerName();
+        String petName = newGameScene.getPetName();
+        if (!playerName.equals("") && !petName.equals("")){
+            newGameScene.remove();
+            
+            model.newGame(playerName, petName);
+            loadMainScene();
+        }
+        else {
+            newGameScene.setErrorMessage("Please fill out both fields");
+        }
+    }
+
     // load save 
     private void loadGame() {
-        model.loadGame();
-
+        if (!model.loadGame()) {
+            startScene.setSaveStatus("Could not load save file");
+            return;
+        }
         loadMainScene();
     }
-    
+
+    private void refreshView() {
+        Pet pet = model.getPet();
+        view.setPetInfo(pet.getName(), pet.getAge());
+        PetNeeds n = pet.getNeeds();
+        view.setNeeds(n.getHappiness(), n.getHunger(), n.getEnergy()); // adjust to your getter names
+        view.setInventory(model.getPlayer().getInventory().getItemsAsMap());   // item name -> quantity, built from the player's inventory
+        view.setDate(model.timeSystem.getRealTimeText());// date/time from the TimeSystem, formatted as strings
+    }
+
     // switch to main scene
     private void loadMainScene() {
         startScene.remove();
-
+ 
         view = new GameSceneGUI(window);
-
-        registerActions();
         attachListeners();
-
-        window.setVisible(true);
+        refreshView();
+ 
+        window.revalidate();
+        window.repaint();
     }
-    
+
     // attach action listeners to key buttons in main scene
-    private void attachListeners() {
-
-        view.checkTreeButton.addActionListener(e -> actionHandler.handleAction("Check Apple Tree", model.pet, model.player));
-        view.putToBedButton.addActionListener(e -> actionHandler.handleAction("Put to Bed", model.pet, model.player));
-        view.quitButton.addActionListener(e -> model.quit());
-
+     private void attachListeners() {
+        //fixed buttons: button -> action name registered in the ActionHandler
+        bindAction(view.checkTreeButton, "Check Apple Tree");
+        bindAction(view.putToBedButton, "Put to Bed");
+ 
+        view.quitButton.addActionListener(e -> quit());
+ 
+        //inventory "Use" buttons: the view reports the item name, we handle it
+        view.setItemUseHandler(this::useItem);
+    }
+     
+    private void bindAction(JButton button, String actionName) {
+        button.addActionListener(e -> {
+            actionHandler.handleAction(actionName, model.getPet(), model.getPlayer());
+            refreshView();
+        });
     }
     
-    // register game actions in ActionHandler
-    private void registerActions() {
-        actionHandler.registerAction(new PutToBedAction());
-        actionHandler.registerAction(new FeedAction());
-        actionHandler.registerAction(new PlayGameAction());
-        actionHandler.registerAction(new CheckTreeAction());
+    private void useItem(String itemName) {
+        Item item = model.getPlayer().getInventory().findByName(itemName);
+        if (item == null) {
+            return;
+        }
+        actionHandler.handleItemAction(item, model.getPet(), model.getPlayer());
+        refreshView();
     }
-
-    public static void main(String[] args) {
-        GameController gameController = new GameController();
+    
+    private void quit() {
+        model.quit();
+        window.dispose();
     }
 }
