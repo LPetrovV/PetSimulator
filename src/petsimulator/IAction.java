@@ -13,6 +13,8 @@ public interface IAction {
     //the inventory, the coins and the garden - not just the pet itself
     public void execute(Pet pet, Player player, Item item);
     public String getName();
+    public String getMessage();
     boolean requiresItem();
     public Class<? extends Item> getItemType();
+    
 }
