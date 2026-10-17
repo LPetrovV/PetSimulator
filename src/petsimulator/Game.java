@@ -14,7 +14,7 @@ public class Game {
     private Pet pet;
     SaveSystem gameSave = new SaveSystem();
     TimeSystem timeSystem = new TimeSystem();
-    
+
     private String updateMessage = "";
 
     public void update() {
@@ -23,19 +23,19 @@ public class Game {
         //needs on screen are always what they should be right now
         String news = timeSystem.update(pet, player.getGarden());
         if (!news.isEmpty()) {
-            updateMessage+=("\n" + news);
+            updateMessage += ("\n" + news);
         }
 
         //If the pet is gone there is nothing left to do
         if (!pet.isAlive()) {
-            updateMessage+=("\n" + pet.getName() + " is no longer with you.\n");
-            updateMessage+=("You kept them going for " + pet.getAge() + " day(s).");
+            updateMessage += ("\n" + pet.getName() + " is no longer with you.\n");
+            updateMessage += ("You kept them going for " + pet.getAge() + " day(s).");
             throw new QuitException();
         }
 
         //Warn the player while there is still time to do something about it
         if (pet.getNeeds().anyLow()) {
-            updateMessage+=("WARNING: " + pet.getName() + " is "
+            updateMessage += ("WARNING: " + pet.getName() + " is "
                     + pet.getNeeds().worstNeed() + "! Look after them soon.");
         }
     }
@@ -59,7 +59,6 @@ public class Game {
 
         //if save file doesn't exist or can't be read, the caller starts a new game
         if (data == null) {
-            System.out.println("There is no save file to load.");
             return false;
         }
 
@@ -79,12 +78,12 @@ public class Game {
         //pet was adopted, and when the game was last up to date
         this.timeSystem = new TimeSystem(data.getFirstPlayed(), data.getSystemDate());
 
-        updateMessage+=("\nWelcome back, " + player.getName() + "!");
+        updateMessage += ("\nWelcome back, " + player.getName() + "!");
 
         //Apply all the real time that passed while the game was closed
         String news = timeSystem.update(pet, player.getGarden());
         if (!news.isEmpty()) {
-            System.out.println(news);
+            updateMessage += (news);
         }
 
         gameSave.appendLog("LOAD | " + player.getName() + " loaded "
@@ -102,7 +101,7 @@ public class Game {
     }
 
     public void quit() {
-        
+
         if (pet != null && pet.isAlive()) {
             saveGame();
         } else if (pet != null) {
@@ -127,24 +126,38 @@ public class Game {
         //A new pet starts the clock from right now
         this.timeSystem = new TimeSystem();
 
-        updateMessage+=("\nThis game runs on real world time. Your pet gets hungry, "
+        updateMessage += ("\nThis game runs on real world time. Your pet gets hungry, "
                 + "tired and bored whether the game is open or not, so come back often - "
                 + "leave them " + TimeSystem.ABANDON_DAYS
                 + " days and they will find a new owner.");
 
         gameSave.appendLog("NEW GAME | " + playerName + " adopted " + petName);
     }
-    
+
     //getters and setters
-    public Pet getPet(){
+    public Pet getPet() {
         return this.pet;
     }
-    
-    public Player getPlayer(){
+
+    public Player getPlayer() {
         return this.player;
     }
-    
-    public String getUpdateMessage(){
+
+    public String getUpdateMessage() {
         return updateMessage;
+    }
+
+    public String consumeUpdateMessage() {
+        String message = updateMessage.trim();
+        updateMessage = "";
+        return message;
+    }
+    
+    public boolean hasSave(){
+        return gameSave.exists();
+    }
+    
+    public String getTimeText() {
+        return timeSystem.getRealTimeText();
     }
 }

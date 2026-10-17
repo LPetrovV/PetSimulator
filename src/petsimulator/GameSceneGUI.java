@@ -15,12 +15,12 @@ import java.util.function.Consumer;
  *
  * @author petro
  */
-public class GameSceneGUI {
+public class GameSceneGUI implements IScene {
 
+    private final JFrame frame;
     private final JPanel statsPanel;
     private final JPanel infoPanel;
     private final ImagePanel mainPanel;
-    private final JFrame frame;
 
     //sizing
     private final int infoWidth = 200;
@@ -33,11 +33,10 @@ public class GameSceneGUI {
 
     private final int defaultMaxNeed = 100;
 
-    public JLabel dateLabel = new JLabel();
-    
+    private final JLabel dateLabel = new JLabel();
 
     //inventory
-    public JPanel inventoryPanel = new JPanel();
+    private final JPanel inventoryPanel = new JPanel();
     //called with the item name when the user clicks "Use" on an item
     private Consumer<String> itemUseHandler;
 
@@ -46,10 +45,9 @@ public class GameSceneGUI {
     private final JLabel petAgeLabel = new JLabel();
 
     //action buttons
-    public JButton checkTreeButton = new JButton("Check Apple Tree");
-    public JButton putToBedButton = new JButton("Put To Bed");
-
-    public JButton quitButton = new JButton("Save & Quit");
+    private JButton checkTreeButton = new JButton("Check Apple Tree");
+    private JButton putToBedButton = new JButton("Put To Bed");
+    private JButton quitButton = new JButton("Save & Quit");
 
     private final Color UIBgColor = new Color(0xDFF0FF);
     private final Color buttonColor = new Color(0x4C9FFF);
@@ -111,8 +109,6 @@ public class GameSceneGUI {
         //info layout
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
 
-        
-
         //inventory label
         JLabel inventoryLabel = new JLabel();
         inventoryLabel.setText("Inventory");
@@ -130,11 +126,6 @@ public class GameSceneGUI {
         infoPanel.add(Box.createRigidArea(new Dimension(0, 20)));
 
         inventoryPanel.setOpaque(false);
-
-        //placeholder items until the controller calls setInventory
-        inventoryPanel.add(new ItemComponent("Apple", 3));
-        inventoryPanel.add(new ItemComponent("Apple", 3));
-        inventoryPanel.add(new ItemComponent("Apple", 3));
 
         infoPanel.add(inventoryPanel);
 
@@ -154,7 +145,7 @@ public class GameSceneGUI {
         //pet info panel
         JPanel petInfoPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         petInfoPanel.setOpaque(false);
-        setPetInfo("Bob", 3);
+
         petInfoPanel.add(petNameLabel);
         petInfoPanel.add(petAgeLabel);
 
@@ -184,10 +175,30 @@ public class GameSceneGUI {
         }
     }
 
+    public void setOnCheckTree(Runnable action) {
+        checkTreeButton.addActionListener(e -> action.run());
+    }
+
+    public void setOnPutToBed(Runnable action) {
+        putToBedButton.addActionListener(e -> action.run());
+    }
+
+    public void setOnQuit(Runnable action) {
+        quitButton.addActionListener(e -> action.run());
+    }
+
+    @Override
+    public void remove() {
+        frame.remove(statsPanel);
+        frame.remove(inventoryPanel);
+        frame.remove(infoPanel);
+        frame.revalidate();
+        frame.repaint();
+    }
+
     // ------------------------------------------------------------------
     // Setters used by the controller to update the view
     // ------------------------------------------------------------------
-
     public void setPetInfo(String name, int age) {
         petNameLabel.setText(name + " - ");
         petAgeLabel.setText(age + " days old");
@@ -217,17 +228,17 @@ public class GameSceneGUI {
     }
 
     /**
-     * Registers what should happen when the user clicks "Use" on any item.
-     * The handler receives the name of the item. Call this before setInventory.
+     * Registers what should happen when the user clicks "Use" on any item. The
+     * handler receives the name of the item. Call this before setInventory.
      */
     public void setItemUseHandler(Consumer<String> handler) {
         this.itemUseHandler = handler;
     }
 
     /**
-     * Rebuilds the inventory display from item name -> quantity.
-     * Use a LinkedHashMap to keep a stable display order.
-     * Items with a quantity of 0 or less are not shown.
+     * Rebuilds the inventory display from item name -> quantity. Use a
+     * LinkedHashMap to keep a stable display order. Items with a quantity of 0
+     * or less are not shown.
      */
     public void setInventory(Map<String, Integer> items) {
         inventoryPanel.removeAll();

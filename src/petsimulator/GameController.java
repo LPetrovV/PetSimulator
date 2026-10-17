@@ -4,9 +4,10 @@
  */
 package petsimulator;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 import javax.swing.JButton;
+import javax.swing.Timer;
+import java.util.function.Supplier;
+import java.util.function.Consumer;
 
 /**
  *
@@ -19,10 +20,18 @@ public class GameController {
     private final Game model;
     private final ActionHandler actionHandler;
 
-    private StartScene startScene;
+    private StartScreenGUI startScene;
     private NewGamePromptGUI newGameScene;
     private GameSceneGUI view;
     private GameMessageGUI messageGUI;
+
+    private javax.swing.Timer gameDateTimer;
+    private javax.swing.Timer gameUpdateTimer;
+
+    private static final int DATE_TICK_MS = 1000;
+    private static final int UPDATE_TICK_MS = 30000;
+
+    private IScene current;
 
     public GameController(Window window, Game model, ActionHandler actionHandler) {
         this.window = window;
@@ -32,14 +41,15 @@ public class GameController {
 
     //on application start display title screen 
     public void start() {
-        startScene = new StartScene(window);
+        startScene = show(() -> new StartScreenGUI(window));
+        messageGUI = new GameMessageGUI(window);
 
-        boolean saveExists = model.gameSave.exists();
+        boolean saveExists = model.hasSave();
         startScene.setSaveStatus(saveExists ? "Save file found" : "No save file found");
         startScene.setLoadEnabled(saveExists);
 
-        startScene.newGameButton.addActionListener(e -> openNewGamePromptScene());
-        startScene.loadGameButton.addActionListener(e -> loadGame());
+        startScene.setOnNewGame(this::openNewGamePromptScene);
+        startScene.setOnLoadGame(this::loadGame);
 
         window.setVisible(true);
     }
@@ -48,9 +58,9 @@ public class GameController {
     private void openNewGamePromptScene() {
         startScene.remove();
         //open prompt input scene 
-        newGameScene = new NewGamePromptGUI(window);
+        newGameScene = show(() -> new NewGamePromptGUI(window));
+        newGameScene.setOnStart(this::checkNewGameRequirements);
 
-        newGameScene.startButton.addActionListener(e -> checkNewGameRequirements());
         window.setVisible(true);
     }
 
@@ -58,9 +68,7 @@ public class GameController {
         String playerName = newGameScene.getPlayerName();
         String petName = newGameScene.getPetName();
         if (!playerName.equals("") && !petName.equals("")) {
-            newGameScene.remove();
-
-            model.newGame(playerName, petName);
+            model.newGame(petName, playerName);
             loadMainScene();
         } else {
             newGameScene.setErrorMessage("Please fill out both fields");
@@ -82,44 +90,49 @@ public class GameController {
         PetNeeds n = pet.getNeeds();
         view.setNeeds(n.getHappiness(), n.getHunger(), n.getEnergy()); // adjust to your getter names
         view.setInventory(model.getPlayer().getInventory().getItemsAsMap());   // item name -> quantity, built from the player's inventory
-        view.setDate(model.timeSystem.getRealTimeText());// date/time from the TimeSystem, formatted as strings
+        view.setDate(model.getTimeText());// date/time from the TimeSystem, formatted as strings
     }
 
     // switch to main scene
     private void loadMainScene() {
-        startScene.remove();
+        view = show(() -> new GameSceneGUI(window));
 
-        view = new GameSceneGUI(window);
         attachListeners();
         refreshView();
-        
+
         //display news messages
-        messageGUI = new GameMessageGUI(window);
-        messageGUI.showMessage(model.getUpdateMessage());
+        messageGUI.showMessage(model.consumeUpdateMessage());
+
+        startDateTimer();
+        startUpdateTimer();
 
         window.revalidate();
         window.repaint();
     }
 
+    private <T extends IScene> T show(Supplier<T> next) {
+        if (current != null) {
+            current.remove();        // remove the old scene before building the new one
+        }
+        T scene = next.get();
+        current = scene;
+        window.revalidate();
+        window.repaint();
+        return scene;
+    }
+
     // attach action listeners to key buttons in main scene
     private void attachListeners() {
-        //fixed buttons: button -> action name registered in the ActionHandler
-        bindAction(view.checkTreeButton, "Check Apple Tree");
-        bindAction(view.putToBedButton, "Put to Bed");
-
-        view.quitButton.addActionListener(e -> quit());
-
-        //inventory "Use" buttons: the view reports the item name, we handle it
+        bindAction(view::setOnCheckTree, "Check Apple Tree");
+        bindAction(view::setOnPutToBed, "Put to Bed");
+        view.setOnQuit(this::quit);
         view.setItemUseHandler(this::useItem);
     }
 
-    private void bindAction(JButton button, String actionName) {
-        button.addActionListener(e -> {
-            var message = actionHandler.handleAction(actionName, model.getPet(), model.getPlayer());
-            
-            messageGUI = new GameMessageGUI(window);
-            messageGUI.showMessage(message, 3000);
-            
+    private void bindAction(Consumer<Runnable> register, String actionName) {
+        register.accept(() -> {
+            String message = actionHandler.handleAction(actionName, model.getPet(), model.getPlayer());
+            messageGUI.showMessage(message, UPDATE_TICK_MS);
             refreshView();
         });
     }
@@ -130,13 +143,50 @@ public class GameController {
             return;
         }
         var message = actionHandler.handleItemAction(item, model.getPet(), model.getPlayer());
-        
-        messageGUI = new GameMessageGUI(window);
+
         messageGUI.showMessage(message, 3000);
         refreshView();
     }
 
+    private void startDateTimer() {
+        gameDateTimer = new javax.swing.Timer(DATE_TICK_MS, e -> dateTick());
+        gameDateTimer.start();
+    }
+
+    private void dateTick() {
+        try {
+            view.setDate(model.timeSystem.getRealTimeText());
+        } catch (QuitException ex) {
+            gameDateTimer.stop();     // pet has left, stop updating
+        }
+
+//        refreshView();
+    }
+
+    private void startUpdateTimer() {
+        gameUpdateTimer = new javax.swing.Timer(UPDATE_TICK_MS, e -> updateTick());
+        gameUpdateTimer.start();
+    }
+
+    private void updateTick() {
+        try {
+            model.update();
+        } catch (QuitException ex) {
+            gameUpdateTimer.stop();     // pet has left, stop updating
+            // show the final message
+            messageGUI.showMessage(model.consumeUpdateMessage(), 4000);
+        }
+
+        String news = model.consumeUpdateMessage();
+        if (!news.isEmpty()) {
+            messageGUI.showMessage(news, 4000);
+        }
+        refreshView();
+    }
+
     private void quit() {
+        gameDateTimer.stop();
+        gameUpdateTimer.stop();
         model.quit();
         window.dispose();
     }
