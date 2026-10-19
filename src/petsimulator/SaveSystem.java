@@ -4,157 +4,218 @@
  */
 package petsimulator;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Scanner;
+import java.util.Collections;
 
 /**
  *
  * @author AJ Franchuk
  */
-//This class is the File I/O component - every read from and write to disk in
-//the game happens here, so nothing else has to deal with files.
+//This class is the database component - every read from and write to the
+//embedded Derby database happens here through JDBC, so nothing else in the
+//game has to know any SQL. DatabaseManager hands out the connection.
 //
-//  READ  1  loadSave()          data/savegame.txt   BufferedReader
-//  READ  2  loadItems()         data/items.txt      Scanner
-//  READ  3  readLog()           data/log.txt        BufferedReader
-//  WRITE 1  saveToFile()        data/savegame.txt   PrintWriter
-//  WRITE 2  writeDefaultItems() data/items.txt      PrintWriter
-//  WRITE 3  appendLog()         data/log.txt        PrintWriter (append mode)
+//  READ  1  loadSave()          GAME_SAVE + INVENTORY   SELECT
+//  READ  2  loadItems()         ITEM_CATALOG            SELECT
+//  READ  3  readLog()           ACTIVITY_LOG            SELECT
+//  WRITE 1  save()              GAME_SAVE + INVENTORY   DELETE + INSERT (one transaction)
+//  WRITE 2  seedDefaultItems()  ITEM_CATALOG            INSERT (batch)
+//  WRITE 3  appendLog()         ACTIVITY_LOG            INSERT
+//  WRITE 4  deleteSave()        GAME_SAVE + INVENTORY   DELETE
 //
-//Nothing in here is allowed to crash the game: a missing file is created with
-//defaults, and a damaged line is skipped instead of throwing.
+//Nothing in here is allowed to crash the game: a database error is printed
+//and the method returns a safe value instead of throwing.
+//
+//AI-assisted (Claude): this class used to read and write text files in a
+//data folder. The JDBC version was written with AI help, keeping the same
+//public methods so Game and GameController barely had to change.
 public class SaveSystem {
 
-    public static final String FOLDER = "data";
-    public static final String SAVE_FILE = FOLDER + File.separator + "savegame.txt";
-    public static final String ITEMS_FILE = FOLDER + File.separator + "items.txt";
-    public static final String LOG_FILE = FOLDER + File.separator + "log.txt";
+    //There is only one save slot in this game, so it always has this id
+    public static final int SAVE_SLOT = 1;
 
     private static final DateTimeFormatter STAMP
             = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    private final DatabaseManager database;
+
     //The snapshot most recently written or read
     private SaveData saveData;
+
+    //The real game database
+    public SaveSystem() {
+        this(new DatabaseManager());
+    }
+
+    //Lets the unit tests point the save system at a throwaway database
+    public SaveSystem(DatabaseManager database) {
+        this.database = database;
+    }
 
     public SaveData getSaveData() {
         return saveData;
     }
 
-    //Makes sure the data folder exists before anything writes into it
-    private void makeFolder() {
-        File folder = new File(FOLDER);
-        if (!folder.exists()) {
-            folder.mkdirs();
-        }
-    }
-
-    //True if there is a save file worth offering to the player
+    //True if there is a saved game worth offering to the player
     public boolean exists() {
-        File file = new File(SAVE_FILE);
-        return file.exists() && file.length() > 0;
-    }
-
-    //Removes the save, used when the pet has left and the game is over
-    public boolean deleteSave() {
-        File file = new File(SAVE_FILE);
-        return file.exists() && file.delete();
-    }
-
-    // =====================================================================
-    // The save file
-    // =====================================================================
-
-    //WRITE 1 - writes the whole game out as readable key=value text
-    public boolean saveToFile(SaveData data) {
-        makeFolder();
-        this.saveData = data;
-
-        try (PrintWriter writer = new PrintWriter(new FileWriter(SAVE_FILE))) {
-            writer.println("#Pet Simulator save file");
-            writer.println("#firstPlayed is when the pet was adopted, systemDate is when");
-            writer.println("#this file was written. Both are real world times.");
-            writer.println("firstPlayed=" + data.getFirstPlayed().format(STAMP));
-            writer.println("systemDate=" + data.getSystemDate().format(STAMP));
-            writer.println();
-            writer.println("playerName=" + data.getPlayerName());
-            writer.println("playerCoins=" + data.getPlayerCoins());
-            writer.println();
-            writer.println("petType=" + data.getPetType());
-            writer.println("petName=" + data.getPetName());
-            writer.println("petAge=" + data.getPetAge());
-            writer.println("petEnergy=" + data.getPetEnergy());
-            writer.println("petHunger=" + data.getPetHunger());
-            writer.println("petHappiness=" + data.getPetHappiness());
-            writer.println();
-            writer.println("treeApples=" + data.getTreeApples());
-            writer.println("treeGrowth=" + data.getTreeGrowth());
-            writer.println();
-            writer.println("items=" + data.getItemsAsLine());
-            return true;
-
-        } catch (IOException e) {
-            System.out.println("Could not save the game: " + e.getMessage());
+        String sql = "SELECT COUNT(*) FROM GAME_SAVE WHERE SAVE_ID = ?";
+        try (PreparedStatement query = database.getConnection().prepareStatement(sql)) {
+            query.setInt(1, SAVE_SLOT);
+            try (ResultSet result = query.executeQuery()) {
+                return result.next() && result.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            System.out.println("Could not check for a saved game: " + e.getMessage());
             return false;
         }
     }
 
-    //READ 1 - reads the save file back in
-    //The lines go into a LinkedHashMap first, so the order of the file doesn't
-    //matter and a missing line just falls back to a default
-    public SaveData loadSave() {
-        if (!exists()) {
-            return null;
+    //WRITE 4 - removes the save, used when the pet has left and the game is over
+    //The INVENTORY rows go with it because of ON DELETE CASCADE
+    public boolean deleteSave() {
+        String sql = "DELETE FROM GAME_SAVE WHERE SAVE_ID = ?";
+        try (PreparedStatement delete = database.getConnection().prepareStatement(sql)) {
+            delete.setInt(1, SAVE_SLOT);
+            return delete.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.out.println("Could not delete the saved game: " + e.getMessage());
+            return false;
         }
+    }
 
-        LinkedHashMap<String, String> values = new LinkedHashMap<>();
+    // =====================================================================
+    // The saved game
+    // =====================================================================
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(SAVE_FILE))) {
-            String line = reader.readLine();
-            while (line != null) {
-                String trimmed = line.trim();
-                int equals = trimmed.indexOf('=');
-                //skip blank lines, comments and anything without a key
-                if (!trimmed.isBlank() && !trimmed.startsWith("#") && equals > 0) {
-                    values.put(trimmed.substring(0, equals).trim(),
-                            trimmed.substring(equals + 1).trim());
-                }
-                line = reader.readLine();
+    //WRITE 1 - writes the whole game into GAME_SAVE and INVENTORY
+    //The old save and its items are removed and the new ones inserted inside
+    //one transaction, so a crash half way through can never leave a save with
+    //the wrong items - either everything is written or nothing is.
+    public boolean save(SaveData data) {
+        this.saveData = data;
+        Connection connection = null;
+
+        try {
+            connection = database.getConnection();
+            connection.setAutoCommit(false);
+
+            try (PreparedStatement delete = connection.prepareStatement(
+                    "DELETE FROM GAME_SAVE WHERE SAVE_ID = ?")) {
+                delete.setInt(1, SAVE_SLOT);
+                delete.executeUpdate();
             }
-        } catch (IOException e) {
-            System.out.println("Could not read the save file: " + e.getMessage());
-            return null;
-        }
 
-        if (values.isEmpty()) {
-            System.out.println("The save file is empty or damaged.");
-            return null;
-        }
+            try (PreparedStatement insert = connection.prepareStatement(
+                    "INSERT INTO GAME_SAVE (SAVE_ID, PLAYER_NAME, PLAYER_COINS, "
+                    + "PET_TYPE, PET_NAME, PET_AGE, PET_ENERGY, PET_HUNGER, "
+                    + "PET_HAPPINESS, TREE_APPLES, TREE_GROWTH, FIRST_PLAYED, "
+                    + "SYSTEM_DATE) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                insert.setInt(1, SAVE_SLOT);
+                insert.setString(2, fit(data.getPlayerName(), 100));
+                insert.setInt(3, data.getPlayerCoins());
+                insert.setString(4, fit(data.getPetType(), 30));
+                insert.setString(5, fit(data.getPetName(), 100));
+                insert.setInt(6, data.getPetAge());
+                insert.setInt(7, data.getPetEnergy());
+                insert.setInt(8, data.getPetHunger());
+                insert.setInt(9, data.getPetHappiness());
+                insert.setInt(10, data.getTreeApples());
+                insert.setInt(11, data.getTreeGrowth());
+                insert.setTimestamp(12, Timestamp.valueOf(data.getFirstPlayed()));
+                insert.setTimestamp(13, Timestamp.valueOf(data.getSystemDate()));
+                insert.executeUpdate();
+            }
 
+            //Each item in SaveData looks like "FoodItem:apple:2:10"
+            try (PreparedStatement insertItem = connection.prepareStatement(
+                    "INSERT INTO INVENTORY (SAVE_ID, ITEM_TYPE, ITEM_NAME, PRICE, BUFF) "
+                    + "VALUES (?, ?, ?, ?, ?)")) {
+                for (String record : data.getItems()) {
+                    String[] parts = record.split(":");
+                    if (parts.length < 4) {
+                        continue; //damaged record, skip it
+                    }
+                    try {
+                        insertItem.setInt(1, SAVE_SLOT);
+                        insertItem.setString(2, fit(parts[0].trim(), 30));
+                        insertItem.setString(3, fit(parts[1].trim(), 50));
+                        insertItem.setInt(4, Integer.parseInt(parts[2].trim()));
+                        insertItem.setInt(5, Integer.parseInt(parts[3].trim()));
+                        insertItem.addBatch();
+                    } catch (NumberFormatException e) {
+                        //a bad number - skip this item rather than lose the save
+                    }
+                }
+                insertItem.executeBatch();
+            }
+
+            connection.commit();
+            return true;
+
+        } catch (SQLException e) {
+            System.out.println("Could not save the game: " + e.getMessage());
+            rollback(connection);
+            return false;
+        } finally {
+            restoreAutoCommit(connection);
+        }
+    }
+
+    //READ 1 - reads the saved game and its items back out of the database
+    public SaveData loadSave() {
         SaveData data = new SaveData();
-        data.setPlayerName(readText(values, "playerName", "Player"));
-        data.setPlayerCoins(readNumber(values, "playerCoins", 0));
-        data.setPetType(readText(values, "petType", "Pet"));
-        data.setPetName(readText(values, "petName", "Pet"));
-        data.setPetAge(readNumber(values, "petAge", 0));
-        data.setPetEnergy(readNumber(values, "petEnergy", 100));
-        data.setPetHunger(readNumber(values, "petHunger", 100));
-        data.setPetHappiness(readNumber(values, "petHappiness", 100));
-        data.setTreeApples(readNumber(values, "treeApples", 2));
-        data.setTreeGrowth(readNumber(values, "treeGrowth", 0));
-        data.setFirstPlayed(readDate(values, "firstPlayed"));
-        data.setSystemDate(readDate(values, "systemDate"));
-        data.setItemsFromLine(readText(values, "items", ""));
+
+        try {
+            Connection connection = database.getConnection();
+
+            try (PreparedStatement query = connection.prepareStatement(
+                    "SELECT * FROM GAME_SAVE WHERE SAVE_ID = ?")) {
+                query.setInt(1, SAVE_SLOT);
+                try (ResultSet row = query.executeQuery()) {
+                    if (!row.next()) {
+                        return null; //nothing saved yet
+                    }
+                    data.setPlayerName(row.getString("PLAYER_NAME"));
+                    data.setPlayerCoins(row.getInt("PLAYER_COINS"));
+                    data.setPetType(row.getString("PET_TYPE"));
+                    data.setPetName(row.getString("PET_NAME"));
+                    data.setPetAge(row.getInt("PET_AGE"));
+                    data.setPetEnergy(row.getInt("PET_ENERGY"));
+                    data.setPetHunger(row.getInt("PET_HUNGER"));
+                    data.setPetHappiness(row.getInt("PET_HAPPINESS"));
+                    data.setTreeApples(row.getInt("TREE_APPLES"));
+                    data.setTreeGrowth(row.getInt("TREE_GROWTH"));
+                    data.setFirstPlayed(row.getTimestamp("FIRST_PLAYED").toLocalDateTime());
+                    data.setSystemDate(row.getTimestamp("SYSTEM_DATE").toLocalDateTime());
+                }
+            }
+
+            //ORDER BY keeps the items in the order the player had them
+            try (PreparedStatement query = connection.prepareStatement(
+                    "SELECT ITEM_TYPE, ITEM_NAME, PRICE, BUFF FROM INVENTORY "
+                    + "WHERE SAVE_ID = ? ORDER BY ITEM_ID")) {
+                query.setInt(1, SAVE_SLOT);
+                try (ResultSet row = query.executeQuery()) {
+                    while (row.next()) {
+                        data.getItems().add(row.getString("ITEM_TYPE") + ":"
+                                + row.getString("ITEM_NAME") + ":"
+                                + row.getInt("PRICE") + ":" + row.getInt("BUFF"));
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Could not load the saved game: " + e.getMessage());
+            return null;
+        }
 
         this.saveData = data;
         return data;
@@ -182,44 +243,36 @@ public class SaveSystem {
                     rebuilt.add(new FoodItem(name, price, buff));
                 }
             } catch (NumberFormatException e) {
-                //a hand-edited number - skip this item rather than crash
+                //a bad number - skip this item rather than crash
             }
         }
         return rebuilt;
     }
 
     // =====================================================================
-    // The item list
+    // The item catalog
     // =====================================================================
 
-    //READ 2 - loads the starting items from a text file, so the items in the
-    //game can be changed without touching any code
-    //Format: type,name,price,buff,howMany
+    //READ 2 - loads the starting items from ITEM_CATALOG, so the items in the
+    //game can be changed in the database without touching any code
     public ArrayList<Item> loadItems() {
-        if (!new File(ITEMS_FILE).exists()) {
-            writeDefaultItems();
-        }
-
         ArrayList<Item> loaded = new ArrayList<>();
 
-        try (Scanner scanner = new Scanner(new File(ITEMS_FILE))) {
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine().trim();
-                if (line.isBlank() || line.startsWith("#")) {
-                    continue;
-                }
+        try {
+            if (countRows("ITEM_CATALOG") == 0) {
+                seedDefaultItems();
+            }
 
-                String[] parts = line.split(",");
-                if (parts.length < 5) {
-                    continue; //not enough columns, skip the line
-                }
-
-                try {
-                    String type = parts[0].trim();
-                    String name = parts[1].trim();
-                    int price = Integer.parseInt(parts[2].trim());
-                    int buff = Integer.parseInt(parts[3].trim());
-                    int howMany = Integer.parseInt(parts[4].trim());
+            try (Statement statement = database.getConnection().createStatement();
+                    ResultSet row = statement.executeQuery(
+                            "SELECT ITEM_TYPE, ITEM_NAME, PRICE, BUFF, QUANTITY "
+                            + "FROM ITEM_CATALOG ORDER BY ITEM_TYPE, ITEM_NAME")) {
+                while (row.next()) {
+                    String type = row.getString("ITEM_TYPE");
+                    String name = row.getString("ITEM_NAME");
+                    int price = row.getInt("PRICE");
+                    int buff = row.getInt("BUFF");
+                    int howMany = row.getInt("QUANTITY");
 
                     for (int i = 0; i < howMany; i++) {
                         if (type.equalsIgnoreCase("toy")) {
@@ -228,32 +281,40 @@ public class SaveSystem {
                             loaded.add(new FoodItem(name, price, buff));
                         }
                     }
-                } catch (NumberFormatException e) {
-                    //damaged line in the file, skip it
                 }
             }
-        } catch (FileNotFoundException e) {
-            System.out.println("No item file found, starting with an empty bag.");
+        } catch (SQLException e) {
+            System.out.println("Could not load the item catalog, starting with an empty bag: "
+                    + e.getMessage());
         }
         return loaded;
     }
 
-    //WRITE 2 - creates the item file the first time the game runs
-    public void writeDefaultItems() {
-        makeFolder();
-        try (PrintWriter writer = new PrintWriter(new FileWriter(ITEMS_FILE))) {
-            writer.println("#Pet Simulator starting items");
-            writer.println("#Format: type,name,price,buff,howMany");
-            writer.println("#Food is mostly grown on the apple tree, so the");
-            writer.println("#player only starts with a little");
-            writer.println("food,apple,2,10,2");
-    
-            writer.println("#Toys are not used up, so a few last the whole game");
-            writer.println("toy,ball,5,20,1");
-            writer.println("toy,mouse,4,15,1");
-            writer.println("toy,bell,7,25,1");
-        } catch (IOException e) {
-            System.out.println("Could not create the item file: " + e.getMessage());
+    //WRITE 2 - fills ITEM_CATALOG the first time the game runs
+    //Food is mostly grown on the apple tree, so the player only starts with a
+    //little. Toys are not used up, so a few last the whole game.
+    public void seedDefaultItems() {
+        Object[][] defaults = {
+            {"food", "apple", 2, 10, 2},
+            {"toy", "ball", 5, 20, 1},
+            {"toy", "mouse", 4, 15, 1},
+            {"toy", "bell", 7, 25, 1}
+        };
+
+        String sql = "INSERT INTO ITEM_CATALOG (ITEM_TYPE, ITEM_NAME, PRICE, BUFF, QUANTITY) "
+                + "VALUES (?, ?, ?, ?, ?)";
+        try (PreparedStatement insert = database.getConnection().prepareStatement(sql)) {
+            for (Object[] item : defaults) {
+                insert.setString(1, (String) item[0]);
+                insert.setString(2, (String) item[1]);
+                insert.setInt(3, (Integer) item[2]);
+                insert.setInt(4, (Integer) item[3]);
+                insert.setInt(5, (Integer) item[4]);
+                insert.addBatch();
+            }
+            insert.executeBatch();
+        } catch (SQLException e) {
+            System.out.println("Could not create the item catalog: " + e.getMessage());
         }
     }
 
@@ -261,66 +322,80 @@ public class SaveSystem {
     // The activity log
     // =====================================================================
 
-    //WRITE 3 - adds one timestamped line to the log
-    //FileWriter is opened in append mode so old entries are kept
+    //WRITE 3 - adds one timestamped row to the log
     public void appendLog(String message) {
-        makeFolder();
-        try (PrintWriter writer = new PrintWriter(new FileWriter(LOG_FILE, true))) {
-            writer.println(LocalDateTime.now().format(STAMP) + " | " + message);
-        } catch (IOException e) {
+        String sql = "INSERT INTO ACTIVITY_LOG (LOGGED_AT, MESSAGE) VALUES (?, ?)";
+        try (PreparedStatement insert = database.getConnection().prepareStatement(sql)) {
+            insert.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
+            insert.setString(2, fit(message, 500));
+            insert.executeUpdate();
+        } catch (SQLException e) {
             System.out.println("Could not write to the log: " + e.getMessage());
         }
     }
 
-    //READ 3 - reads the most recent lines back out of the log
+    //READ 3 - reads the most recent rows back out of the log, oldest first,
+    //formatted the same way the old log.txt lines were
     public ArrayList<String> readLog(int howMany) {
-        ArrayList<String> all = new ArrayList<>();
+        ArrayList<String> recent = new ArrayList<>();
 
-        if (!new File(LOG_FILE).exists()) {
-            return all;
-        }
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(LOG_FILE))) {
-            String line = reader.readLine();
-            while (line != null) {
-                if (!line.isBlank()) {
-                    all.add(line);
+        //AI-assisted (Claude): FETCH FIRST n ROWS ONLY is the Derby version of
+        //LIMIT. Sorting newest first and then reversing in Java gives the last
+        //n rows in the right order without reading the whole table.
+        String sql = "SELECT LOGGED_AT, MESSAGE FROM ACTIVITY_LOG "
+                + "ORDER BY LOG_ID DESC FETCH FIRST ? ROWS ONLY";
+        try (PreparedStatement query = database.getConnection().prepareStatement(sql)) {
+            query.setInt(1, Math.max(howMany, 1));
+            try (ResultSet row = query.executeQuery()) {
+                while (row.next()) {
+                    recent.add(row.getTimestamp("LOGGED_AT").toLocalDateTime().format(STAMP)
+                            + " | " + row.getString("MESSAGE"));
                 }
-                line = reader.readLine();
             }
-        } catch (IOException e) {
+        } catch (SQLException e) {
             System.out.println("Could not read the log: " + e.getMessage());
         }
 
-        if (all.size() <= howMany) {
-            return all;
-        }
-        return new ArrayList<>(all.subList(all.size() - howMany, all.size()));
+        Collections.reverse(recent);
+        return recent;
     }
 
     // =====================================================================
-    // Small helpers for reading values safely
+    // Small helpers
     // =====================================================================
 
-    private String readText(LinkedHashMap<String, String> values, String key, String fallback) {
-        String value = values.get(key);
-        return (value == null || value.isBlank()) ? fallback : value;
-    }
-
-    private int readNumber(LinkedHashMap<String, String> values, String key, int fallback) {
-        try {
-            return Integer.parseInt(readText(values, key, String.valueOf(fallback)));
-        } catch (NumberFormatException e) {
-            return fallback; //the line was damaged, use the default
+    private int countRows(String table) throws SQLException {
+        try (Statement statement = database.getConnection().createStatement();
+                ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM " + table)) {
+            return result.next() ? result.getInt(1) : 0;
         }
     }
 
-    private LocalDateTime readDate(LinkedHashMap<String, String> values, String key) {
+    //Cuts text down to the column size so a very long name cannot fail a save
+    private String fit(String text, int max) {
+        if (text == null) {
+            return "";
+        }
+        return text.length() <= max ? text : text.substring(0, max);
+    }
+
+    private void rollback(Connection connection) {
         try {
-            return LocalDateTime.parse(readText(values, key,
-                    LocalDateTime.now().format(STAMP)), STAMP);
-        } catch (DateTimeParseException e) {
-            return LocalDateTime.now();
+            if (connection != null) {
+                connection.rollback();
+            }
+        } catch (SQLException e) {
+            System.out.println("Could not undo the failed save: " + e.getMessage());
+        }
+    }
+
+    private void restoreAutoCommit(Connection connection) {
+        try {
+            if (connection != null) {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            //the connection is already broken, nothing more to do
         }
     }
 }

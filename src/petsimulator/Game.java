@@ -46,15 +46,15 @@ public class Game {
         //how long the player has been away
         SaveData data = new SaveData(player, pet, timeSystem);
 
-        if (gameSave.saveToFile(data)) {
-            //System.out.println("Game saved to " + SaveSystem.SAVE_FILE);
+        if (gameSave.save(data)) {
+            //written to the GAME_SAVE and INVENTORY tables
             gameSave.appendLog("SAVE | " + player.getName() + " saved "
                     + pet.getName() + " (age " + pet.getAge() + ")");
         }
     }
 
     public boolean loadGame() {
-        //load from existing save file
+        //load the saved game from the database
         SaveData data = gameSave.loadSave();
 
         //if save file doesn't exist or can't be read, the caller starts a new game
@@ -75,7 +75,7 @@ public class Game {
                 data.getPetHappiness());
         this.pet = createPet(data.getPetType(), data.getPetName(), data.getPetAge(), needs);
 
-        //Restart the clock from the two real times in the save file: when the
+        //Restart the clock from the two real times in the saved game: when the
         //pet was adopted, and when the game was last up to date
         this.timeSystem = new TimeSystem(data.getFirstPlayed(), data.getSystemDate());
 
@@ -92,7 +92,7 @@ public class Game {
         return true;
     }
 
-    //Builds the right kind of pet from the type name stored in the save file
+    //Builds the right kind of pet from the type name stored in the database
     //Adding a new species later means adding one line here
     private Pet createPet(String type, String name, int age, PetNeeds needs) {
         if (type.equalsIgnoreCase("Cat")) {
@@ -119,7 +119,7 @@ public class Game {
         this.pet = new Pet(petName);
         this.player = new Player(playerName);
 
-        //Starting items are read from data/items.txt instead of being hard coded
+        //Starting items are read from the ITEM_CATALOG table instead of being hard coded
         for (Item item : gameSave.loadItems()) {
             player.getInventory().addItem(item);
         }
