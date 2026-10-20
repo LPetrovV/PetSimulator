@@ -159,6 +159,7 @@ restart → load) showed the player, pet, inventory and log all come back.
 * `GameController.checkNewGameRequirements()` calls
   `model.newGame(playerName, petName)` but `Game.newGame` is declared as
   `newGame(String petName, String playerName)` – so the pet gets the player's
-  name. Left for the team to fix (outside the database work).
+  name. Left for the team to fix (outside the database work) - fixed by Lisa
+  in commit 164119a ("bug fixes and MVC restructuring").
 * `PlayGameAction` tells the player the pet "feels a bit tired now", but
   `Pet.playGame()` only raises happiness - energy does not change.
