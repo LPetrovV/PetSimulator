@@ -100,6 +100,11 @@ public class SaveSystem {
     //one transaction, so a crash half way through can never leave a save with
     //the wrong items - either everything is written or nothing is.
     public boolean save(SaveData data) {
+        //Nothing to write - return before the old save is touched, otherwise the
+        //DELETE below would be committed with no new save to replace it
+        if (data == null) {
+            return false;
+        }
         this.saveData = data;
         Connection connection = null;
 

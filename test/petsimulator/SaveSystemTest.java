@@ -73,13 +73,13 @@ public class SaveSystemTest {
     }
 
     @Test
-    public void noSaveExistsAtFirst() {
+    public void testExists_NoSaveAtFirst() {
         assertFalse(saveSystem.exists());
         assertNull(saveSystem.loadSave());
     }
 
     @Test
-    public void savedGameLoadsBackTheSame() {
+    public void testSaveAndLoad_AllFieldsMatch() {
         assertTrue(saveSystem.save(sampleSave()));
         assertTrue(saveSystem.exists());
 
@@ -103,7 +103,7 @@ public class SaveSystemTest {
     }
 
     @Test
-    public void savingAgainReplacesTheOldSave() {
+    public void testSave_ReplacesOldSave() {
         saveSystem.save(sampleSave());
 
         SaveData second = sampleSave();
@@ -119,7 +119,7 @@ public class SaveSystemTest {
     }
 
     @Test
-    public void rebuiltItemsAreTheRightClass() {
+    public void testRebuildItems_RightClass() {
         saveSystem.save(sampleSave());
         ArrayList<Item> items = saveSystem.rebuildItems(saveSystem.loadSave());
         assertEquals(2, items.size());
@@ -129,7 +129,7 @@ public class SaveSystemTest {
     }
 
     @Test
-    public void deleteRemovesSaveAndItems() throws SQLException {
+    public void testDeleteSave_RemovesSaveAndItems() throws SQLException {
         saveSystem.save(sampleSave());
         assertTrue(saveSystem.deleteSave());
         assertFalse(saveSystem.exists());
@@ -142,7 +142,7 @@ public class SaveSystemTest {
     }
 
     @Test
-    public void emptyCatalogIsFilledWithDefaults() {
+    public void testLoadItems_DefaultsAddedOnce() {
         ArrayList<Item> items = saveSystem.loadItems();
         //2 apples + ball + mouse + bell
         assertEquals(5, items.size());
@@ -152,7 +152,7 @@ public class SaveSystemTest {
     }
 
     @Test
-    public void logReturnsNewestEntriesInOrder() {
+    public void testReadLog_NewestInOrder() {
         saveSystem.appendLog("first");
         saveSystem.appendLog("second");
         saveSystem.appendLog("third");
@@ -164,10 +164,72 @@ public class SaveSystemTest {
     }
 
     @Test
-    public void veryLongNameDoesNotBreakTheSave() {
+    public void testSave_VeryLongName() {
         SaveData data = sampleSave();
         data.setPlayerName("x".repeat(300));
         assertTrue(saveSystem.save(data));
         assertEquals(100, saveSystem.loadSave().getPlayerName().length());
+    }
+
+    @Test
+    public void testDeleteSave_NothingToDelete() {
+        assertFalse(saveSystem.deleteSave());
+    }
+
+    @Test
+    public void testSave_NoItems() {
+        SaveData data = sampleSave();
+        data.getItems().clear();
+        assertTrue(saveSystem.save(data));
+        assertEquals(0, saveSystem.loadSave().getItems().size());
+    }
+
+    @Test
+    public void testSave_DamagedItemIsSkipped() {
+        SaveData data = sampleSave();
+        data.getItems().add("ToyItem:broken");
+        data.getItems().add("FoodItem:apple:two:10");
+        saveSystem.save(data);
+        assertEquals(2, saveSystem.loadSave().getItems().size());
+    }
+
+    @Test
+    public void testRebuildItems_DamagedRecordIsSkipped() {
+        SaveData data = new SaveData();
+        data.getItems().add("FoodItem:apple:2:10");
+        data.getItems().add("not an item");
+        assertEquals(1, saveSystem.rebuildItems(data).size());
+    }
+
+    @Test
+    public void testSaveAndLoad_RebuildsPetAndPlayer() {
+        saveSystem.save(sampleSave());
+        SaveData loaded = saveSystem.loadSave();
+        PetNeeds needs = new PetNeeds(loaded.getPetEnergy(), loaded.getPetHunger(),
+                loaded.getPetHappiness());
+        Pet pet = new Cat(loaded.getPetName(), loaded.getPetAge(), needs);
+        Player player = new Player(loaded.getPlayerName(), loaded.getPlayerCoins(),
+                new AppleTree(loaded.getTreeApples(), loaded.getTreeGrowth()));
+        assertEquals("Whiskers", pet.getName());
+        assertEquals(55, pet.getNeeds().getHunger());
+        assertEquals(42, player.getCoins());
+        assertEquals(4, player.getGarden().getApples());
+    }
+
+    @Test
+    public void testReadLog_EmptyLog() {
+        assertEquals(0, saveSystem.readLog(5).size());
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testRebuildItems_DataIsNull() {
+        saveSystem.rebuildItems(null);
+    }
+
+    @Test
+    public void testSave_DataIsNullKeepsOldSave() {
+        saveSystem.save(sampleSave());
+        assertFalse(saveSystem.save(null));
+        assertEquals("Whiskers", saveSystem.loadSave().getPetName());
     }
 }

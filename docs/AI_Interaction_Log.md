@@ -120,9 +120,46 @@ restart → load) showed the player, pet, inventory and log all come back.
 
 ---
 
+### Entry 7 – Tests for saving/loading and action handling
+
+**Prompt (verbatim):**
+> "We need to create tests for important features of the game. Test for proper
+> data saving and loading in saveSystem. Test for proper action handling, e.g
+> each user action modifies data in the correct way. Attached is an example I
+> completed for the lab task. Make sure to use JUnit4, you'll need to set this
+> up manually in netbeans" (plus the lab file `ArrayTestTest.java`)
+
+**Code comments:** `test/petsimulator/ActionHandlerTest.java` class header;
+`SaveSystem.save()` null check.
+
+**AI output:**
+* `ActionHandlerTest` – 24 tests: Feed, Play Game, Put to Bed and Check Apple
+  Tree each change only the right need / inventory / tree, values are capped
+  at 100, food is used up but toys are kept, unknown actions and plain items
+  change nothing, and null pet/player throw `NullPointerException`.
+* `SaveSystemTest` renamed to the lab naming style (`testMethod_Case`) and
+  extended to 16 tests (empty save, damaged items, rebuilding Pet/Player from
+  a loaded save, empty log, null input).
+* JUnit 4.13.2 + Hamcrest 1.3 are in `lib/` and on the NetBeans *Compile
+  Tests* classpath, so Test Project (Alt+F6) works without adding a library.
+
+| Suggestion | Decision | Why |
+|---|---|---|
+| Match the lab test style (`@Test(expected = …)`, one behaviour per test) | **Accepted** | Same format as the lab example |
+| Every pet need starts at 50 in `@Before` | **Accepted** | A change up or down is visible in the assertions |
+| Assert that Play Game makes the pet tired (the message says so) | **Rejected** | `Pet.playGame()` does not change energy, so the test would fail – noted as a mismatch for the team instead |
+| `save(null)` test expecting `NullPointerException` | **Rejected → fixed the code** | Writing the test showed `save(null)` ran the DELETE, then crashed, and turning auto-commit back on committed the DELETE – wiping the old save. Added a null check; the test now checks the old save survives |
+
+**Result:** NetBeans Ant build `test` target – 40 tests, 0 failures.
+
+---
+
 ### Issues the AI spotted but did not change
 
 * `GameController.checkNewGameRequirements()` calls
   `model.newGame(playerName, petName)` but `Game.newGame` is declared as
   `newGame(String petName, String playerName)` – so the pet gets the player's
-  name. Left for the team to fix (outside the database work).
+  name. Left for the team to fix (outside the database work) - fixed by Lisa
+  in commit 164119a ("bug fixes and MVC restructuring").
+* `PlayGameAction` tells the player the pet "feels a bit tired now", but
+  `Pet.playGame()` only raises happiness - energy does not change.
