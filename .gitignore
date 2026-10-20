@@ -26,3 +26,12 @@
 hs_err_pid*
 replay_pid*
 /build/
+
+# Libraries the project needs to build (Derby + JUnit) are kept in lib/
+!lib/*.jar
+
+# The embedded Derby database is created when the game first runs.
+# It is included in the submission ZIP but not tracked by git.
+/database/
+/test-database/
+derby.log
