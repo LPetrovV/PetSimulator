@@ -13,7 +13,7 @@ import java.awt.*;
  *
  * @author petro
  */
-public class StartScene {
+public class StartScreenGUI implements IScene {
 
     private JFrame frame;
     private JPanel rootPanel;
@@ -21,13 +21,13 @@ public class StartScene {
     private JLabel titleLabel = new JLabel("Virtual Pet Sim");
     private JLabel saveStatusLabel = new JLabel();
 
-    public JButton newGameButton = new JButton("New Game");
-    public JButton loadGameButton = new JButton("Load Game");
+    private JButton newGameButton = new JButton("New Game");
+    private JButton loadGameButton = new JButton("Load Game");
 
     private final Color buttonColor = new Color(0x4C9FFF);
     private final Dimension buttonSize = new Dimension(160, 40);
 
-    public StartScene(JFrame frame) {
+    public StartScreenGUI(JFrame frame) {
         this.frame = frame;
 
         rootPanel = new JPanel();
@@ -73,18 +73,32 @@ public class StartScene {
     // ------------------------------------------------------------------
     // Setters used by the controller
     // ------------------------------------------------------------------
-
-    /** Text such as "Save file found" or "No save file found". */
+    /**
+     * Text such as "Save file found" or "No save file found".
+     */
     public void setSaveStatus(String status) {
         saveStatusLabel.setText(status);
     }
 
-    /** Disable the load button when there is no save file to load. */
+    /**
+     * Disable the load button when there is no save file to load.
+     */
     public void setLoadEnabled(boolean enabled) {
         loadGameButton.setEnabled(enabled);
     }
 
-    /** Removes this scene from the frame so another scene can be shown. */
+    public void setOnNewGame(Runnable action) {
+        newGameButton.addActionListener(e -> action.run());
+    }
+
+    public void setOnLoadGame(Runnable action) {
+        loadGameButton.addActionListener(e -> action.run());
+    }
+
+    /**
+     * Removes this scene from the frame so another scene can be shown.
+     */
+    @Override
     public void remove() {
         frame.remove(rootPanel);
         frame.revalidate();

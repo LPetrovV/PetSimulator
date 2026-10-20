@@ -2,7 +2,7 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-/*
+ /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
@@ -76,21 +76,26 @@ public class GameMessageGUI {
     // ------------------------------------------------------------------
     // Used by the controller
     // ------------------------------------------------------------------
-
-    /** Shows any message and keeps it up until hideMessage() or the x button. */
+    /**
+     * Shows any message and keeps it up until hideMessage() or the x button.
+     */
     public void showMessage(String message) {
         stopTimer();
 
-        messageLabel.setText(formatMessage(message));
-        messagePanel.setSize(messagePanel.getPreferredSize());
-        reposition();
-        messagePanel.setVisible(true);
+        if (message != null) {
+            messageLabel.setText(formatMessage(message));
+            messagePanel.setSize(messagePanel.getPreferredSize());
+            reposition();
+            messagePanel.setVisible(true);
 
-        //make sure it is drawn above anything added after it
-        layeredPane.moveToFront(messagePanel);
+            //make sure it is drawn above anything added after it
+            layeredPane.moveToFront(messagePanel);
+        }
     }
 
-    /** Shows a message and hides it automatically after durationMs milliseconds. */
+    /**
+     * Shows a message and hides it automatically after durationMs milliseconds.
+     */
     public void showMessage(String message, int durationMs) {
         showMessage(message);
 
@@ -104,7 +109,9 @@ public class GameMessageGUI {
         messagePanel.setVisible(false);
     }
 
-    /** Removes the message box from the frame completely. */
+    /**
+     * Removes the message box from the frame completely.
+     */
     public void remove() {
         hideMessage();
         layeredPane.remove(messagePanel);
@@ -114,7 +121,6 @@ public class GameMessageGUI {
     // ------------------------------------------------------------------
     // Internal helpers
     // ------------------------------------------------------------------
-
     private void reposition() {
         Dimension size = messagePanel.getSize();
         int y = layeredPane.getHeight() - size.height - margin;
