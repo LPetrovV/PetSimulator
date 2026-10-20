@@ -8,7 +8,7 @@
 | Item | Value |
 |---|---|
 | IDE | Apache NetBeans (Ant project – open the `PetSimulator` folder) |
-| JDK | 21 or newer (project is set to 26; Derby 10.17 needs 21+) |
+| JDK | 26 – the JDK bundled with NetBeans 30 works as-is (Derby 10.17 needs 21+) |
 | Main class | `petsimulator.Main` |
 | Database | Apache Derby 10.17.1.0, **embedded** (no server to start) |
 | JDBC URL | `jdbc:derby:database/PetSimulatorDB;create=true` |

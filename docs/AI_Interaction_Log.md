@@ -154,6 +154,42 @@ restart → load) showed the player, pet, inventory and log all come back.
 
 ---
 
+### Entry 8 – Checking the build in NetBeans and merging into main
+
+**Prompts (verbatim):**
+> "you can try netbeans if needed i have it installled"
+>
+> "push it thru github please"
+
+**Code comments:** none – no game code changed in this entry.
+
+**AI output:**
+* Found that NetBeans 30 runs on its own bundled JDK 26.0.1, so the project
+  setting `javac.source=26` works without changes (this PC only has JDK 21,
+  23 and 25 installed separately).
+* Ran the NetBeans build script (`clean test jar`) with the Ant and JDK that
+  ship with NetBeans: 40 tests, 0 failures, `dist/PetSimulator.jar` built.
+* Launched the game window from a scratch folder – it opened with no errors
+  and created its database on startup. The AI could not click through the
+  window (its screen-control tool only works with installed apps, not a plain
+  Java window), so instead it ran a headless check: new game → quit (saves)
+  → restart → load. Player, pet and inventory all came back correctly with
+  Lisa's MVC changes merged in.
+* The browser was not signed in to GitHub, so a pull request could not be
+  opened. The AI merged `DB` into `main` locally, ran the 40 tests again on
+  the merged code, and pushed `main` (commit `aac0038`).
+
+| Suggestion | Decision | Why |
+|---|---|---|
+| Lower the project to Java 25 to match the installed JDK | **Rejected** | Not needed – NetBeans uses its bundled JDK 26, and changing it would affect Lisa's setup |
+| Run the game from the project folder | **Rejected** | It would have put a test save into the real `database/` folder that goes in the ZIP; a scratch folder was used instead |
+| Merge into `main` with a pull request | **Modified** | No GitHub login in the browser, so `DB` was merged locally and pushed directly; tests were run before pushing |
+
+**Not verified:** the GUI buttons were not clicked by the AI – check them by
+running the game in NetBeans (F6) before recording the video.
+
+---
+
 ### Issues the AI spotted but did not change
 
 * `GameController.checkNewGameRequirements()` calls
